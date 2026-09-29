@@ -33,11 +33,12 @@ PARAM_RANGES = {
     "rotation_deg":   (0.0, 360.0),
     # facade, per face (independent WWR and overhang on each face)
     "wwr_1": (0.2, 0.8), "wwr_2": (0.2, 0.8), "wwr_3": (0.2, 0.8), "wwr_4": (0.2, 0.8),
-    "r1_1":  (0.0, 1.0), "r1_2":  (0.0, 1.0), "r1_3":  (0.0, 1.0), "r1_4":  (0.0, 1.0),
+    "r1_1":  (0.0, 1.5), "r1_2":  (0.0, 1.5), "r1_3":  (0.0, 1.5), "r1_4":  (0.0, 1.5),
+    "overhang_angle": (0.0, 30.0),  # inclination of all overhangs (Tables C12-C15 cover 0-50°)
     # materials, same on all faces
-    "u_wall": (0.4, 2.5),   # insulated panel .. uninsulated masonry/concrete
-    "u_fen":  (1.4, 5.8),   # low-e double glazing .. single clear glass
-    "sc1":    (0.2, 0.9),   # high-performance tinted/low-e .. clear glass
+    "u_wall": (0.5, 3.0),   # insulated panel .. uninsulated RC/brick (BCA App. D walls: 1.93-2.99)
+    "u_fen":  (1.6, 5.8),   # low-e double glazing .. single glazing (BCA App. D: 5.82 single, 2.96 double)
+    "sc1":    (0.25, 0.75), # high-performance low-e .. clear-ish glass (BCA examples: 0.47-0.70)
 }
 INT_PARAMS = {"storeys"}
 
@@ -61,7 +62,8 @@ def evaluate_row(r: pd.Series) -> dict:
         Facade(azimuth_deg=(r.rotation_deg + 90 * i) % 360,
                gross_area=widths[i] * h,
                wwr=r[f"wwr_{i+1}"], u_wall=r.u_wall, u_fen=r.u_fen,
-               sc1=r.sc1, overhang_r1=r[f"r1_{i+1}"])
+               sc1=r.sc1, overhang_r1=r[f"r1_{i+1}"],
+               overhang_angle=r.overhang_angle)
         for i in range(4)
     ]
     res = building_ettv(facades)
@@ -69,6 +71,7 @@ def evaluate_row(r: pd.Series) -> dict:
            "q_solar": res["q_solar"], "passes": res["passes"]}
     for i, t in enumerate(res["per_facade"], start=1):
         out[f"orient_{i}"] = t["orientation"]
+        out[f"sc2_{i}"] = t["sc2"]
         out[f"ettv_{i}"] = t["ettv"]
     return out
 
