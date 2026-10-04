@@ -9,6 +9,7 @@ The "area takeoff" is done exactly by geometry here — no ML needed for that pa
 
 Usage:
     python sample.py --n 10000 --seed 42 --out data/ettv_dataset.csv
+    python sample.py --n 8192 --method Sobol --out data/ettv_dataset_sobol.csv     (v3: other sampling methods)
 """
 from __future__ import annotations
 
@@ -81,11 +82,18 @@ def main():
     ap.add_argument("--n", type=int, default=10_000)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", type=str, default="data/ettv_dataset.csv")
+    ap.add_argument("--method", type=str, default="LHS",
+                    help='v3: one of "Random", "LHS", "Optimised LHS", "Sobol", "Halton" (default LHS, as in v1/v2)')
     a = ap.parse_args()
 
-    X = lhs_sample(a.n, a.seed)
-    Y = pd.DataFrame([evaluate_row(r) for _, r in X.iterrows()])
-    df = pd.concat([X, Y], axis=1)
+    if a.method == "LHS":
+        X = lhs_sample(a.n, a.seed)              # identical to v1/v2, so the default dataset is unchanged
+        Y = pd.DataFrame([evaluate_row(r) for _, r in X.iterrows()])
+        df = pd.concat([X, Y], axis=1)
+    else:
+        from sampling_methods import generate_dataset
+        df, _ = generate_dataset(a.method, a.n, a.seed)
+        df = df.drop(columns="method")
 
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(a.out, index=False)
