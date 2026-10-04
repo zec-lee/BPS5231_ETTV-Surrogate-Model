@@ -35,40 +35,27 @@ def test_example_D14_overhang():
     assert close(sc2_horizontal("E", 1.0), 0.58, 5e-3)
 
 
-# ---- Appendix D full ETTV example --------------------------------------------------
-# NOTE: the worked example uses CF = 0.58 (S), 0.77 (E), 0.57 (N), 0.87 (W), which do NOT
-# match Table C1 (0.83, 1.13, 0.80, 1.23). We reproduce it with the example's own CFs.
-APPX_D = {
-    "S": dict(cf=0.58, Ao=2356.1, target=44.7,
-              walls=[(49.5, 2.7), (507.5, 1.98), (684.4, 1.93)],
-              fens=[(162, 5.82, 0.61 * 0.68), (952.7, 2.96, 0.47)]),
-    "E": dict(cf=0.77, Ao=2100.0, target=52.1,
-              walls=[(24.2, 2.71), (471.5, 1.98), (640, 1.93)],
-              fens=[(79.2, 5.82, 0.61 * 0.58), (884.7, 2.96, 0.47)]),
-    "N": dict(cf=0.57, Ao=2053.6, target=41.6,
-              walls=[(268.6, 2.99), (420, 1.98), (577.5, 1.93)],
-              fens=[(787.5, 2.96, 0.47)]),
-    "W": dict(cf=0.87, Ao=1785.0, target=55.6,
-              walls=[(420, 1.98), (577.5, 1.93)],
-              fens=[(787.5, 2.96, 0.47)]),
-}
+# ---- Appendix D full ETTV example (v5) ---------------------------------------------
+# The worked example prints CF = 0.58 (S), 0.77 (E), 0.57 (N), 0.87 (W), which do NOT match Table C1
+# (0.83, 1.13, 0.80, 1.23). The CORRECT result uses Table C1: 61.0 W/m2, which fails the 50 W/m2 limit.
+from bca_examples import appendix_d, PRINTED_RESULT
 
 
-def appendix_d(cf_override=None):
-    res = {}
-    for o, d in APPX_D.items():
-        cf = d["cf"] if cf_override is None else cf_override[o]
-        res[o] = ettv_facade_general(d["walls"], d["fens"], cf, d["Ao"])["ettv"]
-    A = {o: d["Ao"] for o, d in APPX_D.items()}
-    res["overall"] = sum(A[o] * res[o] for o in A) / sum(A.values())
-    return res
+def test_appendix_D_correct_table_c1():
+    """Our result for the Appendix D building, with the correct Table C1 CFs."""
+    r = appendix_d("table_c1")
+    for o, target in {"S": 56.2, "E": 68.1, "N": 50.3, "W": 71.3}.items():
+        assert close(r[o], target, 0.06), (o, r[o])
+    assert close(r["overall"], 61.0, 0.06), r["overall"]
+    assert r["overall"] > 50.0                      # the building does NOT comply
 
 
-def test_appendix_D_reproduced():
-    r = appendix_d()
-    for o, d in APPX_D.items():
-        assert close(r[o], d["target"], 0.15), (o, r[o])
-    assert close(r["overall"], 48.2, 0.15), r["overall"]
+def test_appendix_D_arithmetic_check_with_printed_cfs():
+    """Substituting the example's own (wrong) CFs reproduces the printed numbers, so our arithmetic matches."""
+    r = appendix_d("printed")
+    for o in "SENW":
+        assert close(r[o], PRINTED_RESULT[o], 0.06), (o, r[o])
+    assert close(r["overall"], PRINTED_RESULT["overall"], 0.06), r["overall"]   # 48.15 vs printed 48.2
 
 
 # ---- Core behaviour ----------------------------------------------------------------
@@ -99,8 +86,5 @@ if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
             fn(); print("PASS", name)
-    r = appendix_d()
-    print("\nAppendix D (example CFs):", {k: round(v, 2) for k, v in r.items()})
-    c1 = {o: CF_WALL_ETTV.loc[90, o] for o in "SENW"}
-    r2 = appendix_d(c1)
-    print("Appendix D (Table C1 CFs):", {k: round(v, 2) for k, v in r2.items()})
+    print("\nAppendix D, Table C1 CFs (correct):", {k: round(float(v), 2) for k, v in appendix_d("table_c1").items()})
+    print("Appendix D, printed CFs (check)    :", {k: round(float(v), 2) for k, v in appendix_d("printed").items()})
